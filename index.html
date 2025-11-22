@@ -1,18 +1,376 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flames App</title>
-    <link rel="icon" type="image/x-icon" href="favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookmarks — Single File App</title>
+  <meta name="description" content="A simple, fast bookmark manager that runs entirely in your browser. Single HTML file, no backend." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%235b7cff' d='M6 2h9a3 3 0 0 1 3 3v17l-7.5-3.75L3 22V5a3 3 0 0 1 3-3z'/%3E%3C/svg%3E" />
+  <style>
+    :root{
+      --bg: #0b0f1a;
+      --panel: #111827;
+      --panel-2: #0f1629;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #5b7cff;
+      --primary-2: #3b5bff;
+      --danger: #ef4444;
+      --ring: rgba(91,124,255,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji','Segoe UI Emoji';
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(91,124,255,.15), transparent),
+                  radial-gradient(800px 600px at -10% 20%, rgba(34,197,94,.12), transparent),
+                  var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit}
+    .container{max-width:1100px; margin:0 auto; padding:24px;}
+    .app-header{display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px}
+    .brand{display:flex; align-items:center; gap:12px}
+    .badge{font-size:12px; color:var(--muted)}
+    .logo{width:36px; height:36px; display:grid; place-items:center; background:linear-gradient(135deg,var(--primary),#22c55e); border-radius:10px; box-shadow:0 10px 30px rgba(91,124,255,.35)}
+    .title{font-weight:700; letter-spacing:.2px}
+    .actions{display:flex; gap:8px}
+    button,.btn{background:var(--primary); color:white; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600; box-shadow:0 6px 16px rgba(91,124,255,.35); transition:transform .05s ease, background .2s}
+    button.secondary{background:transparent; border:1px solid rgba(255,255,255,.08); color:var(--text)}
+    button:hover{background:var(--primary-2)}
+    button:active{transform:translateY(1px)}
+    .grid{display:grid; grid-template-columns: 320px 1fr; gap:16px}
+    @media (max-width: 900px){
+      .grid{grid-template-columns: 1fr}
+    }
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)) , var(--panel);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px}
+    .label{font-size:12px; color:var(--muted)}
+    input, textarea{width:100%; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:var(--panel-2); color:var(--text); outline:none; transition: box-shadow .2s, border-color .2s}
+    input:focus, textarea:focus{box-shadow:0 0 0 4px var(--ring); border-color:var(--primary)}
+    .row{display:flex; gap:10px}
+    .toolbar{display:flex; gap:10px; align-items:center; margin-top:10px}
+    .muted{color:var(--muted)}
+    .list{display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)) , #0f1524; border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:12px; display:flex; gap:10px; align-items:flex-start; position:relative}
+    .drag{cursor:grab; user-select:none; opacity:.6}
+    .favicon{width:18px; height:18px; border-radius:4px}
+    .title-row{display:flex; align-items:center; gap:8px; justify-content:space-between}
+    .tag{font-size:11px; padding:4px 8px; border:1px solid rgba(255,255,255,.08); border-radius:999px; color:var(--muted)}
+    .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+    .card-actions{display:flex; gap:6px; position:absolute; right:8px; top:8px}
+    .icon-btn{background:transparent; border:1px solid rgba(255,255,255,.08); padding:6px 8px; border-radius:8px}
+    .icon-btn.danger{border-color:rgba(239,68,68,.4); color:#fecaca}
+    .empty{border:1px dashed rgba(255,255,255,.15); border-radius:14px; padding:28px; text-align:center; color:var(--muted)}
+    .pill{font-size:12px; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02)}
+    .sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">🔖</div>
+        <div>
+          <div class="title">Bookmark Manager</div>
+          <div class="badge">Local-first • No sign-in • Single file</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="exportBtn" class="secondary">Export</button>
+        <button id="importBtn" class="secondary">Import</button>
+        <input type="file" id="importFile" accept="application/json" class="sr" />
+        <button id="clearBtn" class="secondary" title="Clear all">Reset</button>
+        <button id="addQuick">+ Quick Add</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <aside class="panel">
+        <form id="form">
+          <h3 style="margin:0 0 8px 0">Add / Edit</h3>
+          <div class="field">
+            <label class="label" for="title">Title</label>
+            <input id="title" placeholder="e.g. MDN Web Docs" required />
+          </div>
+          <div class="field">
+            <label class="label" for="url">URL</label>
+            <input id="url" type="url" placeholder="https://developer.mozilla.org" required />
+          </div>
+          <div class="field">
+            <label class="label" for="tags">Tags (comma or space separated)</label>
+            <input id="tags" placeholder="docs, dev, reference" />
+          </div>
+          <div class="toolbar">
+            <button type="submit">Save</button>
+            <button type="button" id="cancelEdit" class="secondary">Cancel</button>
+            <span id="status" class="muted"></span>
+          </div>
+          <input type="hidden" id="editId" />
+        </form>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.08); margin:16px 0" />
+        <div class="field">
+          <label class="label" for="q">Search</label>
+          <input id="q" placeholder="Search title, url, or #tag" />
+        </div>
+        <div class="field">
+          <label class="label" for="tagFilter">Filter by tag</label>
+          <input id="tagFilter" placeholder="e.g. dev" />
+        </div>
+        <div class="row">
+          <button id="sortAZ" class="secondary">Sort A–Z</button>
+          <button id="sortTime" class="secondary">Sort Newest</button>
+        </div>
+      </aside>
+      
+      <main>
+        <div id="list" class="list" aria-live="polite"></div>
+        <div id="empty" class="empty" style="display:none">No bookmarks yet. Add your first one!</div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    const storeKey = 'bookmark_app.v1';
+    const now = () => new Date().toISOString();
+
+    function load(){
+      try{ return JSON.parse(localStorage.getItem(storeKey)) || [] }catch(e){ return [] }
+    }
+    function save(items){ localStorage.setItem(storeKey, JSON.stringify(items)); }
+
+    function normalizeTags(str){
+      return (str || '')
+        .split(/[,#\s]+/)
+        .map(t => t.trim().toLowerCase())
+        .filter(Boolean);
+    }
+
+    function faviconFor(url){
+      try{
+        const u = new URL(url);
+        return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=32`;
+      }catch(e){ return 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }
+    }
+
+    function validateUrl(u){
+      try{ new URL(u); return true }catch{ return false }
+    }
+
+    const state = {
+      items: load(),
+      sort: 'time',
+      q: '',
+      tag: ''
+    };
+
+    function render(){
+      const list = $('#list');
+      list.innerHTML = '';
+
+      let items = [...state.items];
+
+      if(state.q){
+        const q = state.q.toLowerCase();
+        items = items.filter(it =>
+          it.title.toLowerCase().includes(q) ||
+          it.url.toLowerCase().includes(q) ||
+          it.tags.some(t => ('#'+t).includes(q) || t.includes(q))
+        );
+      }
+      if(state.tag){
+        const tag = state.tag.toLowerCase();
+        items = items.filter(it => it.tags.includes(tag));
+      }
+
+      if(state.sort === 'az') items.sort((a,b)=>a.title.localeCompare(b.title));
+      else items.sort((a,b)=> b.created.localeCompare(a.created));
+
+      $('#empty').style.display = items.length ? 'none' : 'block';
+
+      items.forEach((it, idx)=>{
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.draggable = true;
+        card.dataset.id = it.id;
+        card.innerHTML = `
+          <div class="drag" title="Drag to re-order">⋮⋮</div>
+          <div style="flex:1; min-width:0">
+            <div class="title-row">
+              <a href="${it.url}" target="_blank" rel="noreferrer noopener" style="display:flex; align-items:center; gap:8px; text-decoration:none">
+                <img class="favicon" src="${faviconFor(it.url)}" alt="" />
+                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${escapeHtml(it.title)}</strong>
+              </a>
+              <div class="card-actions">
+                <button class="icon-btn" data-edit="${it.id}">Edit</button>
+                <button class="icon-btn danger" data-del="${it.id}">Delete</button>
+              </div>
+            </div>
+            <a href="${it.url}" target="_blank" rel="noreferrer noopener" class="muted" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px">${escapeHtml(it.url)}</a>
+            <div class="tags">${it.tags.map(t=>`<span class="tag" data-tag="${t}">#${t}</span>`).join('')}</div>
+            <div class="muted" style="font-size:11px; margin-top:6px">${new Date(it.created).toLocaleString()}</div>
+          </div>
+        `;
+        attachCardEvents(card);
+        list.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str){
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return String(str).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function attachCardEvents(card){
+      card.addEventListener('dragstart', e=>{
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragover', e=>{ e.preventDefault(); });
+      card.addEventListener('drop', e=>{
+        e.preventDefault();
+        const fromId = e.dataTransfer.getData('text/plain');
+        const toId = card.dataset.id;
+        if(fromId === toId) return;
+        const fromIdx = state.items.findIndex(i=>i.id===fromId);
+        const toIdx = state.items.findIndex(i=>i.id===toId);
+        const [moved] = state.items.splice(fromIdx,1);
+        state.items.splice(toIdx,0,moved);
+        save(state.items); render();
+      });
+
+      card.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{
+        const id = btn.dataset.edit;
+        const it = state.items.find(i=>i.id===id);
+        if(!it) return;
+        $('#title').value = it.title;
+        $('#url').value = it.url;
+        $('#tags').value = it.tags.join(', ');
+        $('#editId').value = it.id;
+        $('#status').textContent = 'Editing…';
+      }));
+
+      card.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',()=>{
+        const id = btn.dataset.del;
+        if(confirm('Delete this bookmark?')){
+          state.items = state.items.filter(i=>i.id!==id);
+          save(state.items); render();
+        }
+      }));
+
+      card.querySelectorAll('[data-tag]').forEach(t=>t.addEventListener('click',()=>{
+        $('#tagFilter').value = t.dataset.tag; state.tag = t.dataset.tag; render();
+      }));
+    }
+
+    // Form handling
+    $('#form').addEventListener('submit', e=>{
+      e.preventDefault();
+      const title = $('#title').value.trim();
+      const url = $('#url').value.trim();
+      const tags = normalizeTags($('#tags').value);
+      if(!title || !url) return;
+      if(!validateUrl(url)) { alert('Please enter a valid URL, including https://'); return; }
+      const id = $('#editId').value;
+      if(id){
+        const idx = state.items.findIndex(i=>i.id===id);
+        if(idx>-1){ state.items[idx] = { ...state.items[idx], title, url, tags }; }
+        $('#status').textContent = 'Updated';
+      }else{
+        state.items.unshift({ id: crypto.randomUUID(), title, url, tags, created: now() });
+        $('#status').textContent = 'Saved';
+      }
+      save(state.items);
+      e.target.reset();
+      $('#editId').value = '';
+      setTimeout(()=>$('#status').textContent='', 1200);
+      render();
+    });
+
+    $('#cancelEdit').addEventListener('click', ()=>{
+      $('#form').reset(); $('#editId').value=''; $('#status').textContent='';
+    });
+
+    // Search & filters
+    $('#q').addEventListener('input', e=>{ state.q = e.target.value; render(); });
+    $('#tagFilter').addEventListener('input', e=>{ state.tag = e.target.value.trim().toLowerCase(); render(); });
+
+    // Sorting
+    $('#sortAZ').addEventListener('click', ()=>{ state.sort='az'; render(); });
+    $('#sortTime').addEventListener('click', ()=>{ state.sort='time'; render(); });
+
+    // Export / Import / Reset
+    $('#exportBtn').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(state.items, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bookmarks.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $('#importBtn').addEventListener('click', ()=> $('#importFile').click());
+    $('#importFile').addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      const text = await file.text();
+      try{
+        const data = JSON.parse(text);
+        if(!Array.isArray(data)) throw new Error('Invalid format');
+        // Basic normalization
+        state.items = data.map(x=>({
+          id: x.id || crypto.randomUUID(),
+          title: String(x.title||'Untitled').trim(),
+          url: String(x.url||'').trim(),
+          tags: Array.isArray(x.tags) ? normalizeTags(x.tags.join(' ')) : normalizeTags(x.tags),
+          created: x.created || now()
+        })).filter(x=>x.title && validateUrl(x.url));
+        save(state.items); render();
+        alert('Imported successfully');
+      }catch(err){ alert('Failed to import: '+err.message); }
+      e.target.value = '';
+    });
+
+    $('#clearBtn').addEventListener('click', ()=>{
+      if(confirm('This will delete ALL bookmarks from this browser. Continue?')){
+        state.items = []; save(state.items); render();
+      }
+    });
+
+    // Quick add via prompt
+    $('#addQuick').addEventListener('click', ()=>{
+      const url = prompt('Enter URL'); if(!url) return;
+      if(!validateUrl(url)) { alert('Please enter a valid URL, including https://'); return; }
+      const title = prompt('Title (optional)') || url;
+      const tags = normalizeTags(prompt('Tags (optional)')||'');
+      state.items.unshift({ id: crypto.randomUUID(), title, url, tags, created: now() });
+      save(state.items); render();
+    });
+
+    // Keyboard: focus search with /
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
+        e.preventDefault(); $('#q').focus();
+      }
+    });
+
+    // Initial render with sample if empty
+    if(!state.items.length){
+      state.items = [
+        { id: crypto.randomUUID(), title:'MDN Web Docs', url:'https://developer.mozilla.org', tags:['docs','dev','reference'], created: now() },
+        { id: crypto.randomUUID(), title:'GitHub', url:'https://github.com', tags:['code','dev'], created: now() },
+        { id: crypto.randomUUID(), title:'Flames', url:'https://flames.run', tags:['tools','ai'], created: now() }
+      ];
+      save(state.items);
+    }
+    render();
+  </script>
+</body>
 </html>
